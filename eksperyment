@@ -1,0 +1,20 @@
+Po wyliczeniu wszystkich nierówności wyszło, że dla przypadku pierwszego, górną granicą jest n=1220, a dla przypadku drugiego i trzeciego 1245.
+
+Dla lokalności czasowej progi są następujące:
+Dla sytuacji, w której strona wirtualna jest mniejsza od wiersza:
+Dla przypadku 1 i 2 jest to n=500
+Dla przypadku 3 jes to n=2000
+
+Dla sytuacji, w której strona wirtualna jest większa od wiersza:
+Dla przypadku 1 i 2 jest to n=715
+Dla przypadku 3 jest to n=1431
+
+Ze względu na uzyskane wyniki warto, by przeprowadzić eksperymenty dla następujących wielkości instancji:
+
+wielkosc        ze wzgledu na jaka lokalnosc        czas na laptopie
+250             przestrzenna
+600             przestrzenna
+1000            przestrzenna i czasowa              13 sekund
+1230            czasowa
+1750            czasowa i przestrzenna              1 min
+2250            przestrzenna                        2 min

@@ -12,12 +12,10 @@
 #define DOKL 0.000001
 #define RUNS_AMOUNT 1
 int NumThreads;
-double start;
-int blad_counter;
-float blad_max;
 
-static const int ROWS = 500;     // liczba wierszy macierzy
-static const int COLUMNS = 500;  // lizba kolumn macierzy
+static const int INSTANCE_SIZE = 1500;
+static const int ROWS = INSTANCE_SIZE;     // liczba wierszy macierzy
+static const int COLUMNS = INSTANCE_SIZE;  // lizba kolumn macierzy
 
 float matrix_a[ROWS][COLUMNS];    // lewy operand
 float matrix_b[ROWS][COLUMNS];    // prawy operand
@@ -74,6 +72,16 @@ void print_result()
 		}
 		fprintf(result_file, "\n");
 	}
+}
+
+void multiply_matrices_sequencial()
+{
+	// mnozenie macierzy
+	for (int k = 0; k < COLUMNS; k++)
+		for (int j = 0; j < COLUMNS; j++)
+			for (int i = 0; i < ROWS; i++)
+				matrix_r2[i][j] += matrix_a[i][k] * matrix_b[k][j];
+
 }
 
 void multiply_matrices_IJK()
@@ -185,55 +193,97 @@ void multiply_matrices_KJI_omp3()
 
 }
 
+
 void print_results() {
-	blad_counter = blad_max = 0;
+	int error_counter = 0;
+	float error_max = 0;
+
 	for (int i = 0; i < ROWS; ++i)
 		for (int j = 0; j < COLUMNS; ++j)
 		{
 			if (abs(matrix_r[i][j] - matrix_r2[i][j]) > DOKL)
 			{
-				blad_counter++;
-				if (abs(matrix_r[i][j] - matrix_r2[i][j]) > blad_max)
-					blad_max = abs(matrix_r[i][j] - matrix_r2[i][j]);
+				error_counter++;
+				if (abs(matrix_r[i][j] - matrix_r2[i][j]) > error_max)
+					error_max = abs(matrix_r[i][j] - matrix_r2[i][j]);
 			}
 			//printf("%f %f\n", matrix_r[i][j], matrix_r2[i][j]);
 		}
 
 
-	if (blad_counter > 0) {
-		printf("LICZBA BLEDOW %i, NAJWIEKSZY BLAD  %f\n", blad_counter, blad_max);
+	if (error_counter > 0) {
+		printf("LICZBA BLEDOW %i, NAJWIEKSZY BLAD  %f\n", error_counter, error_max);
 		//fprintf(result_file, "BLEDY %i %f\n", blad_counter, blad_max);
-		fprintf(result_file, "%i; %f; ", blad_counter, blad_max);
+		fprintf(result_file, "%i; %f; ", error_counter, error_max);
 	}
 
 }
 
-double get_current_clock(){
-    // return (double)clock() / CLK_TCK; WINDOWS
-    return clock();
+
+float * compute_errors() {
+	int error_counter = 0;
+	float error_max = 0.0;
+
+	for (int i = 0; i < ROWS; ++i)
+		for (int j = 0; j < COLUMNS; ++j)
+		{
+			if (abs(matrix_r[i][j] - matrix_r2[i][j]) > DOKL)
+			{
+				error_counter++;
+				if (abs(matrix_r[i][j] - matrix_r2[i][j]) > error_max)
+					error_max = abs(matrix_r[i][j] - matrix_r2[i][j]);
+			}
+		}
+
+	float arr[2];
+	arr[0]=error_counter;
+	arr[1]=error_max;
+
+	return arr;
+
 }
 
 
-void print_elapsed_time()
+void print_errors(float arr[]){
+	int error_counter = arr[0];
+	float error_max = arr[1];
+
+	fprintf(result_file, "%i; %f; ", error_counter, error_max);
+}
+
+double get_current_clock(){
+    return (double)clock() / CLK_TCK;
+    //return clock();
+}
+
+
+void print_elapsed_time(double start, double stop)
 {
-	double elapsed;
 	double resolution;
 
 	// wyznaczenie i zapisanie czasu przetwarzania
-	elapsed = get_current_clock();
     // resolution = 1.0 / CLK_TCK;
 	printf("Czas: %8.4f sec \n",
-		elapsed - start);
+		stop - start);
 
 	/*fprintf(result_file,
 		"Czas wykonania programu: %8.4f sec (%6.4f sec rozdzielczosc pomiaru)\n",
 		elapsed - start, resolution);*/
 	fprintf(result_file,
 		"%8.4f; ",
-		elapsed - start);
+		stop - start);
 }
 
 
+void perform_computations( void (*multiplying_function)() ){
+
+	initialize_matricesZ2();
+	double start = get_current_clock();
+	(*multiplying_function)();
+	double stop = get_current_clock();
+	print_elapsed_time(start, stop);
+	print_errors(compute_errors());
+}
 
 
 
@@ -249,10 +299,10 @@ int main(int argc, char* argv[])
 
 	//Determine the number of threads to use
 	if (USE_MULTIPLE_THREADS) {
-		// SYSTEM_INFO SysInfo;
-		// GetSystemInfo(&SysInfo);
-		// NumThreads = SysInfo.dwNumberOfProcessors;
-        NumThreads = 4;
+		NumThreads = 4;
+		SYSTEM_INFO SysInfo;
+		GetSystemInfo(&SysInfo);
+		NumThreads = SysInfo.dwNumberOfProcessors;
 		if (NumThreads > MAXTHREADS)
 			NumThreads = MAXTHREADS;
 	}
@@ -261,40 +311,23 @@ int main(int argc, char* argv[])
 	//fprintf(result_file, "Klasyczny algorytm mnozenia macierzy, liczba watkow %d \n", NumThreads);
 	printf("liczba watkow  = %d\n\n", NumThreads);
 
+
 	for (int h = 0;h < RUNS_AMOUNT;h++) {
+
 		initialize_matrices();
-		start = get_current_clock();
+		double start = get_current_clock();
 		multiply_matrices_KJI();
+		double stop = get_current_clock();
 		printf("KJI ");
-		print_elapsed_time();
-
-		initialize_matricesZ2();
-		start = get_current_clock();
-		multiply_matrices_KJI_omp1();
-		printf("KJI 1 ");
-		print_elapsed_time();
-		print_results();
-
-		initialize_matricesZ2();
-		start = get_current_clock();
-		multiply_matrices_KJI_omp1_popraw();
-		printf("KJI 1p");
-		print_elapsed_time();
-		print_results();
-
-		initialize_matricesZ2();
-		start = get_current_clock();
-		multiply_matrices_KJI_omp2();
-		printf("KJI 2 ");
-		print_elapsed_time();
-		print_results();
-
-		initialize_matricesZ2();
-		start = get_current_clock();
-		multiply_matrices_KJI_omp3();
-		printf("KJI 3 ");
-		print_elapsed_time();
-		print_results();
+		print_elapsed_time(start, stop);
+		
+		printf("Sekwencyjnie: ");
+		perform_computations(multiply_matrices_sequencial);
+		perform_computations(multiply_matrices_KJI_omp1);
+		perform_computations(multiply_matrices_KJI_omp1_popraw);
+		perform_computations(multiply_matrices_KJI_omp2);
+		perform_computations(multiply_matrices_KJI_omp3);
+		
 
 		fprintf(result_file, "\n");
 	}
